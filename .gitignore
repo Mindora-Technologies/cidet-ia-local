@@ -1,0 +1,40 @@
+# Material pesat que es baixa amb scripts/00-descarrega-offline.sh
+offline/
+*.gguf
+*.iso
+*.tar
+*.tar.gz
+*.tgz
+
+# Secrets — MAI al repo
+.env
+.env.local
+*.key
+*.pem
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Sortides generades
+logs/
+*.log
+demo/corpus/out/
+demo/rag/.qdrant/
+demo/db/pgdata/
+c3/resultats/
+c5/resultats/
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
