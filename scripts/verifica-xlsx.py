@@ -87,6 +87,34 @@ check(not any((dv.formula1 or "").startswith("=")
               for dv in ws.data_validations.dataValidation),
       "cap formula1 comença amb «=» (Excel ho rebutjaria)")
 
+# Una llista literal ("2048,4096,…") es compara com a TEXT. Si la cel·la conté
+# un número, Excel la rebutja amb «el valor introduït ha de ser un element de la
+# llista». Els valors numèrics s'han de validar contra un rang de números.
+for dv in ws.data_validations.dataValidation:
+    if dv.type != "list":
+        continue
+    f1 = (dv.formula1 or "").strip()
+    literal = f1.startswith('"')
+    for ref in str(dv.sqref).split():
+        valor = ws[ref].value
+        if isinstance(valor, (int, float)) and literal:
+            errors.append(f"{ref}: valor numèric validat amb una llista literal")
+            print(f"  ✘ {ref}: número {valor} contra llista de text {f1[:40]}")
+        elif isinstance(valor, (int, float)):
+            # ha d'apuntar a un rang que existeixi i que contingui el valor
+            full, rang = f1.split("!") if "!" in f1 else (ws.title, f1)
+            valors = [c.value for fila in wb[full][rang.replace("$", "")] for c in fila]
+            check(valor in valors,
+                  f"{ref}: el valor {valor} és al rang {f1}")
+        elif literal:
+            opcions = [o.strip() for o in f1.strip('"').split(",")]
+            check(valor in opcions or valor is None,
+                  f"{ref}: «{valor}» és a la llista {opcions}")
+        else:
+            full, rang = f1.split("!") if "!" in f1 else (ws.title, f1)
+            valors = [c.value for fila in wb[full][rang.replace("$", "")] for c in fila]
+            check(valor in valors, f"{ref}: «{valor}» és al rang {f1}")
+
 print("\n4. Format condicional")
 check(len(ws.conditional_formatting._cf_rules) >= 2,
       f"Dimensionament: {len(ws.conditional_formatting._cf_rules)} rangs amb format condicional")

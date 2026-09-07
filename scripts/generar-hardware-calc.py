@@ -120,7 +120,7 @@ entrades = [
     (7, "Model candidat", "Qwen3 14B", None),
     (8, "Paràmetres (B)", 14, "0.0"),
     (9, "Quantització", "Q4", None),
-    (10, "Context (tokens)", 8192, "#,##0"),
+    (10, "Context (tokens)", 8192, "0"),
     (11, "KV cache quantitzada", "No", None),
     (12, "Usuaris simultanis", 1, "0"),
     (13, "GPU triada", "RTX 5070", None),
@@ -135,8 +135,12 @@ dv_quant = DataValidation(
     showErrorMessage=True, errorTitle="Quantització no vàlida",
     error="Tria un valor de la llista: FP16, Q8, Q6, Q4 o Q3.",
 )
+# Els valors numèrics NO es poden validar amb una llista literal ("2048,4096,…"):
+# Excel compara el text i la cel·la conté un número (que a més es mostra amb
+# separador de milers), així que no coincideix mai i surt «el valor introduït ha
+# de ser un element de la llista». Es valida contra un rang de números real.
 dv_ctx = DataValidation(
-    type="list", formula1='"2048,4096,8192,16384,32768,65536,131072"',
+    type="list", formula1="Referencia!$H$5:$H$11",
     allow_blank=False, showErrorMessage=True, errorTitle="Context no vàlid",
     error="Tria una de les mides de context de la llista.",
 )
@@ -369,6 +373,21 @@ for r, row in enumerate(quants, start=5):
             c.number_format = "0.00"
         if row[0] == "Q4":
             c.fill = PatternFill("solid", fgColor=ACCENT_SOFT)
+
+# Llista de contextos per a la validació del full Dimensionament (rang H5:H11).
+r_["H4"] = "Contextos"
+r_["H4"].font = Font(name=FONT, size=10, bold=True, color=PAPER)
+r_["H4"].fill = PatternFill("solid", fgColor=ACCENT)
+r_["H4"].alignment = Alignment(horizontal="center", vertical="center")
+r_["H4"].border = BOX
+for i, ctx in enumerate([2048, 4096, 8192, 16384, 32768, 65536, 131072], start=5):
+    c = r_[f"H{i}"]
+    c.value = ctx
+    c.number_format = "0"
+    c.font = Font(name=FONT, size=10, color=INK)
+    c.alignment = Alignment(horizontal="center")
+    c.border = BOX
+r_.column_dimensions["H"].width = 14
 
 r_["B11"] = "Q4_K_M és el punt dolç"
 r_["B11"].font = Font(name=FONT, size=14, bold=True, color=ACCENT)
