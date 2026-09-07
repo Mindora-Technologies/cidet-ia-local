@@ -1,0 +1,28 @@
+# Qdrant sol, per a la classe 4.
+#   docker compose -f c4/docker-compose.qdrant.yml up -d
+#   Consola web:  http://localhost:6333/dashboard
+#
+# La pila sencera de la demo és a demo/docker-compose.yml.
+name: cidet-c4
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: c4-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"     # REST + consola web
+      - "6334:6334"     # gRPC
+    volumes:
+      # Els vectors viuen aquí. Esborrar aquest volum = tornar a indexar-ho tot.
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  qdrant_data:

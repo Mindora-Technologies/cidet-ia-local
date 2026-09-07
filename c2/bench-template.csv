@@ -1,0 +1,28 @@
+# CIDET · IA en local · Classe 2 — full de mesures
+# Omple una fila per cada combinació de model i configuració que provis.
+# Les tres darreres columnes es calculen soles al full de càlcul; aquí s'hi
+# apunta el que es mesura de veritat.
+#
+# gpu                 model de la GPU (RTX 3060 / RTX 5070 / RTX 5060 Ti)
+# vram_total_gb       VRAM de la targeta
+# model               etiqueta d'Ollama, p. ex. qwen3:8b
+# parametres_b        mida en milers de milions de paràmetres
+# quantitzacio        FP16 / Q8 / Q6 / Q4_K_M / Q3
+# num_ctx             finestra de context configurada
+# vram_usada_gb       el que marca nvidia-smi amb el model carregat
+# temps_primer_token  segons fins al primer token (latència percebuda)
+# tokens_generats     tokens de la resposta (eval_count de l'API d'Ollama)
+# segons_generacio    temps de generació
+# tokens_per_segon    tokens_generats / segons_generacio
+# ts_teoric           amplada_de_banda / vram_pesos  (del full de càlcul)
+# percentatge_teoric  tokens_per_segon / ts_teoric   (ha de sortir 60–80 %)
+# offload             si/no — la GPU estava plena i part anava a CPU?
+# observacions        el que et cridi l'atenció
+gpu,vram_total_gb,model,parametres_b,quantitzacio,num_ctx,vram_usada_gb,temps_primer_token,tokens_generats,segons_generacio,tokens_per_segon,ts_teoric,percentatge_teoric,offload,observacions
+RTX 5070,12,qwen3:4b,4,Q4_K_M,8192,,,,,,,,no,
+RTX 5070,12,qwen3:8b,8,Q4_K_M,8192,,,,,,,,no,
+RTX 5070,12,qwen3:14b,14,Q4_K_M,8192,,,,,,,,no,exemple del cas «just»
+RTX 5070,12,qwen3:14b,14,Q4_K_M,32768,,,,,,,,,context gran: mira si encara hi cap
+RTX 5070,12,qwen3:32b,32,Q4_K_M,4096,,,,,,,,si,no hi cap: offload a CPU
+RTX 3060,12,qwen3:8b,8,Q4_K_M,8192,,,,,,,,no,menys amplada de banda que la 5070
+RTX 5060 Ti,16,qwen3:14b,14,Q4_K_M,8192,,,,,,,,no,hi cap còmode

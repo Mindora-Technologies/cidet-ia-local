@@ -1,0 +1,67 @@
+# =============================================================================
+#  Modelfile d'exemple — assistent intern de Distribucions Vallès
+#  CIDET · IA en local · Classe 2
+#
+#  Crear el model:   ollama create assistent-valles -f c2/Modelfile
+#  Provar-lo:        ollama run assistent-valles "quina garantia té un trepant?"
+#  Veure'l:          ollama show assistent-valles --modelfile
+# =============================================================================
+
+# --- BASE -------------------------------------------------------------------
+# Un model ja baixat...
+FROM qwen3:8b
+# ...o un fitxer GGUF del pen drive (mode offline):
+# FROM ./Qwen3-8B-Q4_K_M.gguf
+
+# --- PARÀMETRES -------------------------------------------------------------
+
+# Temperatura: 0 = sempre la mateixa resposta, 1 = creativa.
+# Per a un assistent d'empresa, 0–0,3. Aquí la creativitat és un DEFECTE:
+# volem que digui el que diu el manual, no una variació bonica.
+PARAMETER temperature 0.2
+
+# Finestra de context, en tokens. Cada 1k de context són ~0,1–0,2 GB de VRAM.
+# Si el poses massa gran, el model deixa de cabre-hi. Si el poses massa petit,
+# els fragments del RAG no hi caben.
+# Recorda: el CATALÀ tokenitza pitjor que l'anglès (~30 % més tokens pel mateix
+# text), així que el context se't consumeix més de pressa del que esperaries.
+PARAMETER num_ctx 8192
+
+# Nucleus sampling. Amb temperatura baixa gairebé no es nota; es deixa estàndard.
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+
+# Penalització de repetició. Per sobre d'1,2 el model comença a evitar paraules
+# que necessita (noms de producte, referències) i la resposta se'n ressent.
+PARAMETER repeat_penalty 1.1
+
+# Quantes capes van a la GPU. -1 = totes les que hi càpiguen (recomanat).
+# Posar-hi un número és útil per FORÇAR offload i veure'n l'efecte a classe.
+PARAMETER num_gpu -1
+
+# Seqüències que aturen la generació.
+PARAMETER stop "<|im_end|>"
+
+# --- INSTRUCCIONS DEL SISTEMA ----------------------------------------------
+SYSTEM """
+Ets l'assistent intern de Distribucions Vallès SL, una empresa distribuïdora de
+material industrial. Respons SEMPRE en català.
+
+Regles:
+· Respon només amb la informació que tens. Si no la tens, digues clarament que
+  no ho saps. NO t'inventis mai preus, referències ni terminis.
+· Sigues breu i directe, com un company de feina que té pressa.
+· Quan citis una política, digues de quin document surt.
+· Les referències de producte tenen el format REF-XXXX. Si te'n pregunten una
+  que no coneixes, digues que no consta: no la descriguis.
+"""
+
+# --- PLANTILLA (opcional) ---------------------------------------------------
+# Només cal tocar-la si el model base no en porta o si vols canviar el format
+# del xat. Amb els models d'Ollama, normalment NO s'ha de tocar.
+# TEMPLATE """{{ if .System }}<|im_start|>system
+# {{ .System }}<|im_end|>
+# {{ end }}<|im_start|>user
+# {{ .Prompt }}<|im_end|>
+# <|im_start|>assistant
+# """
