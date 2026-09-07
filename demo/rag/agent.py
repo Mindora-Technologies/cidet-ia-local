@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 import httpx
+from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent))
 from tools.api import ErrorAPI, consulta_enviaments          # noqa: E402
@@ -78,6 +79,13 @@ COM HAS DE TREBALLAR
   dades té l'estat administratiu de la comanda, no la ubicació física.
 · La garantia depèn de la FAMÍLIA del producte. Una comanda amb productes de
   famílies diferents pot tenir unes línies en garantia i altres no: digue-ho.
+· COM ES DECIDEIX si una línia està en garantia, i no de cap altra manera:
+    1. mesos transcorreguts des de la data de la comanda (t'ho dóna el SQL)
+    2. mesos de garantia de la seva família (t'ho diu el manual)
+    3. si (1) < (2) → EN GARANTIA; si no → FORA DE GARANTIA
+  Digues sempre els dos números i la data en què s'acaba. No facis servir cap
+  altre criteri: ni la data de lliurament, ni l'entrada en vigor del manual,
+  ni res que no siguin aquests dos números.
 · Els noms de client de la base de dades porten la forma social («Ferreteria
   Puig SL», no «Ferreteria Puig»). Cerca'ls sempre amb
   `client ILIKE '%Puig%'`, mai amb una igualtat exacta.
@@ -434,20 +442,99 @@ def formata(resposta: str, fonts: list[Font]) -> str:
 
 
 # ------------------------------------------------- servidor estil OpenAI
+# Els models Pydantic han d'estar a NIVELL DE MÒDUL. Amb
+# «from __future__ import annotations» les anotacions són cadenes, i FastAPI
+# les resol al namespace del mòdul: si la classe es defineix dins d'una funció
+# no la troba, tracta el paràmetre com a query i tota petició torna un 422.
+class MissatgeOpenAI(BaseModel):
+    role: str
+    # Open WebUI pot enviar el contingut com a text o com a llista de parts.
+    content: str | list[dict[str, Any]] | None = None
+
+    def text(self) -> str:
+        if isinstance(self.content, list):
+            return " ".join(p.get("text", "") for p in self.content
+                            if isinstance(p, dict))
+        return self.content or ""
+
+
+class PeticioOpenAI(BaseModel):
+    # Els clients envien molts més camps dels que fem servir (temperature,
+    # max_tokens, metadata, tools…). Els acceptem i els ignorem.
+    model_config = {"extra": "allow"}
+
+    model: str = "assistent-valles"
+    messages: list[MissatgeOpenAI]
+    stream: bool = False
+
+
+# Els dos models que veu Open WebUI. El segon existeix NOMÉS per ensenyar el
+# contrast a classe: la mateixa pregunta, el mateix model de llenguatge, però
+# sense documents, sense SQL i sense API. És la diapositiva 5 del curs feta en
+# directe: primer es pregunta al model pelat («no en tinc ni idea») i després
+# a l'assistent («la 4521 és del 12 de març de 2025…»).
+MODEL_AMB_RAG = "assistent-valles"
+MODEL_SENSE_RAG = "model-pelat-sense-rag"
+
+SISTEMA_PELAT = """Ets un assistent útil. Respon en català, de manera breu."""
+
+
+def _passthrough(missatges: list[dict]) -> str:
+    """Parla amb el model DIRECTAMENT: sense documents, sense eines, sense res.
+
+    És el mateix model de llenguatge que fa servir l'assistent. L'única
+    diferència és que no té accés a la informació de l'empresa -- i per això
+    no pot respondre res concret, o s'ho inventa.
+    """
+    cos = {
+        "model": MODEL, "stream": False,
+        "options": {"temperature": TEMPERATURA},
+        "messages": [{"role": "system", "content": SISTEMA_PELAT}, *missatges],
+    }
+    r = httpx.post(f"{OLLAMA_URL}/api/chat", json=cos, timeout=300.0)
+    r.raise_for_status()
+    return r.json()["message"].get("content", "").strip()
+
+
+def _resposta_openai(model: str, contingut: str) -> dict:
+    return {
+        "id": f"chatcmpl-{int(time.time())}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{
+            "index": 0,
+            "message": {"role": "assistant", "content": contingut},
+            "finish_reason": "stop",
+        }],
+    }
+
+
+def _flux_sse(model: str, contingut: str) -> Iterator[str]:
+    """Format de streaming d'OpenAI (SSE).
+
+    L'agent no genera en streaming —treballa amb eines i no té la resposta
+    fins al final—, però Open WebUI demana stream=true per defecte i es queda
+    en blanc si rep un JSON normal. Enviem la resposta en trossos perquè el
+    client la vagi pintant.
+    """
+    creat = int(time.time())
+    base = {"id": f"chatcmpl-{creat}", "object": "chat.completion.chunk",
+            "created": creat, "model": model}
+
+    yield f"data: {json.dumps({**base, 'choices': [{'index': 0, 'delta': {'role': 'assistant'}, 'finish_reason': None}]})}\n\n"
+    for i in range(0, len(contingut), 96):
+        tros = contingut[i:i + 96]
+        yield f"data: {json.dumps({**base, 'choices': [{'index': 0, 'delta': {'content': tros}, 'finish_reason': None}]}, ensure_ascii=False)}\n\n"
+    yield f"data: {json.dumps({**base, 'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}]})}\n\n"
+    yield "data: [DONE]\n\n"
+
+
 def servidor():
     """API compatible amb OpenAI per enganxar l'agent a Open WebUI."""
     from fastapi import FastAPI
-    from pydantic import BaseModel
+    from fastapi.responses import StreamingResponse
     import uvicorn
-
-    class Missatge(BaseModel):
-        role: str
-        content: str
-
-    class Peticio(BaseModel):
-        model: str = "assistent-valles"
-        messages: list[Missatge]
-        stream: bool = False
 
     api = FastAPI(title="Assistent Distribucions Vallès",
                   description="Agent RAG amb documents, SQL i API. "
@@ -455,25 +542,34 @@ def servidor():
 
     @api.get("/v1/models")
     def models() -> dict:
+        ara = int(time.time())
         return {"object": "list", "data": [
-            {"id": "assistent-valles", "object": "model", "owned_by": "mindora"}]}
+            {"id": MODEL_AMB_RAG, "object": "model",
+             "created": ara, "owned_by": "mindora"},
+            {"id": MODEL_SENSE_RAG, "object": "model",
+             "created": ara, "owned_by": "mindora"},
+        ]}
 
     @api.post("/v1/chat/completions")
-    def completions(p: Peticio) -> dict:
-        pregunta = next((m.content for m in reversed(p.messages)
+    def completions(p: PeticioOpenAI):
+        pregunta = next((m.text() for m in reversed(p.messages)
                          if m.role == "user"), "")
-        text, fonts = respon(pregunta)
-        return {
-            "id": f"chatcmpl-{int(time.time())}",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": p.model,
-            "choices": [{
-                "index": 0,
-                "message": {"role": "assistant", "content": formata(text, fonts)},
-                "finish_reason": "stop",
-            }],
-        }
+        if not pregunta.strip():
+            contingut = "No he rebut cap pregunta."
+        elif p.model == MODEL_SENSE_RAG:
+            # Model pelat: cap font, cap eina. El contrast de la classe 1.
+            contingut = _passthrough(
+                [{"role": m.role, "content": m.text()} for m in p.messages
+                 if m.role in ("user", "assistant")])
+        else:
+            text, fonts = respon(pregunta)
+            contingut = formata(text, fonts)
+
+        if p.stream:
+            return StreamingResponse(
+                _flux_sse(p.model, contingut), media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        return _resposta_openai(p.model, contingut)
 
     @api.get("/health")
     def health() -> dict:

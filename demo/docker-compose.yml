@@ -94,6 +94,19 @@ services:
     environment:
       # Parla directament amb l'Ollama de l'amfitrió (el que té la GPU).
       OLLAMA_BASE_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      # I TAMBÉ amb l'agent, que exposa una API compatible amb OpenAI.
+      # Aquesta és la connexió que ensenya la demo: quan tries el model
+      # «assistent-valles» al xat, la pregunta passa per l'agent (documents +
+      # SQL + API), no pel model pelat. Cal tenir-lo engegat a l'amfitrió:
+      #     .venv/bin/python demo/rag/agent.py --serve
+      OPENAI_API_BASE_URL: ${AGENT_URL:-http://host.docker.internal:8000/v1}
+      OPENAI_API_KEY: ${AGENT_API_KEY:-sense-clau}
+      ENABLE_OPENAI_API: "true"
+      ENABLE_OLLAMA_API: "true"
+      # Sense això, Open WebUI desa la configuració al volum el primer cop que
+      # arrenca i després IGNORA les variables d'entorn: canviar-les al compose
+      # no té cap efecte i acabes veient «No models available».
+      ENABLE_PERSISTENT_CONFIG: "false"
       WEBUI_AUTH: ${WEBUI_AUTH:-false}
       WEBUI_NAME: "Assistent Distribucions Vallès"
     volumes:

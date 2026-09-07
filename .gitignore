@@ -38,3 +38,6 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# Captures de treball de la demo
+demo-*.png
