@@ -268,13 +268,29 @@ do_ollama() {
       || warn "no s'ha pogut baixar install.sh d'Ollama"
   fi
 
+  # Ollama va canviar el format del paquet: abans era .tgz i ara és .tar.zst
+  # (comprimit amb zstd). Provem el nou i, si no hi és, el vell.
+  local tar_zst="$dir/ollama-linux-amd64.tar.zst"
   local tgz="$dir/ollama-linux-amd64.tgz"
-  if [[ -s $tgz ]]; then
+  if [[ -s $tar_zst ]]; then
+    ok "$(basename "$tar_zst") ja hi és ($(human "$(stat -c%s "$tar_zst")"))"
+  elif [[ -s $tgz ]]; then
     ok "$(basename "$tgz") ja hi és ($(human "$(stat -c%s "$tgz")"))"
   else
-    fetch "https://github.com/ollama/ollama/releases/latest/download/ollama-linux-amd64.tgz" "$tgz" \
-      && ok "$(basename "$tgz") baixat ($(human "$(stat -c%s "$tgz")"))" \
-      || warn "no s'ha pogut baixar el tarball d'Ollama"
+    local base_url="https://github.com/ollama/ollama/releases/latest/download"
+    if url_ok "$base_url/ollama-linux-amd64.tar.zst"; then
+      fetch "$base_url/ollama-linux-amd64.tar.zst" "$tar_zst" \
+        && ok "$(basename "$tar_zst") baixat ($(human "$(stat -c%s "$tar_zst")"))" \
+        || warn "no s'ha pogut baixar el paquet d'Ollama"
+      command -v zstd >/dev/null 2>&1 \
+        || warn "el paquet és .tar.zst i aquí no hi ha 'zstd': instal·la'l a la màquina de destí (apt install zstd)"
+    elif url_ok "$base_url/ollama-linux-amd64.tgz"; then
+      fetch "$base_url/ollama-linux-amd64.tgz" "$tgz" \
+        && ok "$(basename "$tgz") baixat ($(human "$(stat -c%s "$tgz")"))" \
+        || warn "no s'ha pogut baixar el tarball d'Ollama"
+    else
+      warn "cap paquet d'Ollama disponible a les URL conegudes; mira'n el nom a https://github.com/ollama/ollama/releases"
+    fi
   fi
 }
 

@@ -168,7 +168,13 @@ L'`install.sh` oficial baixa el binari d'internet. Amb el tarball ja baixat:
 
 ```bash
 cd /media/$USER/CIDET-DADES/offline/ollama
-sudo tar -C /usr -xzf ollama-linux-amd64.tgz
+
+# Ollama ha canviat el format del paquet: ara és .tar.zst (zstd), abans .tgz.
+# Fes servir la línia que et toqui segons el fitxer que tinguis:
+sudo apt install -y zstd                       # només per al .tar.zst
+sudo tar -C /usr --zstd -xf ollama-linux-amd64.tar.zst
+# o, si tens el format antic:
+# sudo tar -C /usr -xzf ollama-linux-amd64.tgz
 sudo useradd -r -s /bin/false -U -m -d /usr/share/ollama ollama || true
 sudo tee /etc/systemd/system/ollama.service >/dev/null <<'UNIT'
 [Unit]
