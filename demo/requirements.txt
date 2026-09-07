@@ -1,0 +1,23 @@
+# Dependències de la demo de l'assistent
+# Instal·lació:  python -m venv .venv && .venv/bin/pip install -r demo/requirements.txt
+
+# --- generació de dades i corpus
+openpyxl==3.1.5          # plantilla de dimensionament (c1)
+reportlab==4.2.5         # PDF del corpus
+python-docx==1.1.2       # documents Word del corpus
+pymupdf==1.25.1          # rasteritzar el PDF «escanejat»
+
+# --- ingesta i RAG
+pypdf==5.1.0             # extracció ràpida de text
+httpx==0.28.1            # client HTTP (Ollama, Qdrant, API)
+# docling                # extracció d'alta qualitat: opcional, pesa molt (C4)
+
+# --- agent
+langgraph==0.2.60        # graf d'estat de l'agent (C5)
+langchain-core==0.3.28
+sqlglot==26.0.1          # validació de les consultes SQL generades
+psycopg2-binary==2.9.10  # connexió a PostgreSQL
+
+# --- API d'enviaments
+fastapi==0.115.6
+uvicorn[standard]==0.34.0

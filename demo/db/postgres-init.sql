@@ -21675,19 +21675,18 @@ SELECT c.id                AS comanda_id,
        p.referencia,
        p.nom               AS producte,
        p.familia,
-       p.garantia_mesos,
-       (c.data_comanda + (p.garantia_mesos || ' months')::INTERVAL)::DATE AS fi_garantia,
-       ((c.data_comanda + (p.garantia_mesos || ' months')::INTERVAL)::DATE >= CURRENT_DATE)
-                           AS en_garantia,
-       ((c.data_comanda + (p.garantia_mesos || ' months')::INTERVAL)::DATE - CURRENT_DATE)
-                           AS dies_restants
+       (CURRENT_DATE - c.data_comanda) AS dies_des_de_la_comanda,
+       ROUND((CURRENT_DATE - c.data_comanda) / 30.44, 1) AS mesos_des_de_la_comanda
 FROM comandes c
 JOIN clients        cl ON cl.id = c.client_id
 JOIN linies_comanda l  ON l.comanda_id = c.id
 JOIN productes      p  ON p.id = l.producte_id
 WHERE c.estat <> 'cancel·lada';
 COMMENT ON VIEW v_garanties_comanda IS
-  'Estat de garantia calculat per producte i comanda. La política per família és al manual-garanties.pdf.';
+  'Dades necessàries per determinar la garantia: quin dia es va comprar, què i de
+   quina família. El TERMINI de cada família NO és aquí: és al manual de garanties
+   (manual-garanties.pdf). Aquesta separació és deliberada -- la base de dades sap
+   el fet, el document sap la política, i cal creuar-los.';
 
 CREATE VIEW v_estoc_disponible AS
 SELECT p.referencia,
@@ -21736,10 +21735,14 @@ BEGIN
     SELECT c.data_comanda INTO d FROM comandes c WHERE c.id = 4521;
     IF d IS NULL THEN RAISE EXCEPTION 'falta la comanda 4521'; END IF;
 
-    SELECT bool_or(en_garantia) INTO g FROM v_garanties_comanda
-     WHERE comanda_id = 4521 AND familia = 'eines elèctriques';
+    -- La 4521 ha de dur una eina elèctrica i quedar dins dels 24 mesos que el
+    -- manual de garanties assigna a aquella família.
+    SELECT (COUNT(*) > 0) INTO g FROM v_garanties_comanda
+     WHERE comanda_id = 4521
+       AND familia = 'eines elèctriques'
+       AND dies_des_de_la_comanda < 24 * 30;
     IF NOT COALESCE(g, FALSE) THEN
-        RAISE EXCEPTION 'la comanda 4521 ha de tenir una eina elèctrica EN garantia';
+        RAISE EXCEPTION 'la comanda 4521 ha de dur una eina elèctrica comprada fa menys de 24 mesos';
     END IF;
 
     RAISE NOTICE 'Distribucions Vallès SL: dades carregades i invariants OK.';

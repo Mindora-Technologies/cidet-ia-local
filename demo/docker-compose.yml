@@ -1,0 +1,115 @@
+# =============================================================================
+#  Assistent intern de Distribucions Vallès SL — pila completa
+#  CIDET · IA en local
+#
+#  Ollama NO és aquí: s'executa a l'amfitrió perquè és qui té la GPU i perquè
+#  així els models no es tornen a baixar cada cop que es recrea la pila.
+#  Els contenidors hi arriben per host.docker.internal.
+#
+#     docker compose up -d
+#     docker compose ps            # tots «healthy»
+#     docker compose logs -f api
+# =============================================================================
+
+name: cidet-assistent
+
+services:
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cidet-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"     # API REST i consola web a /dashboard
+      - "6334:6334"                     # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__ENABLE_TLS: "false"
+      QDRANT__LOG_LEVEL: "INFO"
+    healthcheck:
+      # La imatge no porta curl: ho comprovem amb el binari mateix.
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks: [assistent]
+
+  postgres:
+    image: postgres:16
+    container_name: cidet-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-distribuidora}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?cal definir POSTGRES_PASSWORD al .env}
+      # El català necessita la intercalació correcta per ordenar bé.
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Els fitxers d'aquest directori s'executen NOMÉS la primera vegada,
+      # quan el volum és buit. Per tornar a carregar-ho: docker compose down -v
+      - ./db/postgres-init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-distribuidora}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks: [assistent]
+
+  api:
+    image: python:3.12-slim
+    container_name: cidet-api-enviaments
+    restart: unless-stopped
+    working_dir: /app
+    command: >
+      sh -c "pip install --no-cache-dir --quiet fastapi 'uvicorn[standard]' &&
+             uvicorn api_enviaments:app --host 0.0.0.0 --port 8080"
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      API_KEY: ${API_KEY:?cal definir API_KEY al .env}
+      FAKE_LATENCY_MS: ${FAKE_LATENCY_MS:-0}
+      FAILURE_RATE: ${FAILURE_RATE:-0}
+    volumes:
+      - ./api:/app:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 40s     # la primera arrencada instal·la dependències
+    networks: [assistent]
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: cidet-open-webui
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-3000}:8080"
+    environment:
+      # Parla directament amb l'Ollama de l'amfitrió (el que té la GPU).
+      OLLAMA_BASE_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      WEBUI_AUTH: ${WEBUI_AUTH:-false}
+      WEBUI_NAME: "Assistent Distribucions Vallès"
+    volumes:
+      - webui_data:/app/backend/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    networks: [assistent]
+
+volumes:
+  qdrant_data:
+  postgres_data:
+  webui_data:
+
+networks:
+  assistent:
+    driver: bridge
