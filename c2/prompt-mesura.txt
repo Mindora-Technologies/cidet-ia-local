@@ -1,0 +1,1 @@
+Explica en tres paràgrafs què és la quantització d'un model de llenguatge, per què importa quan s'executa en local, i quina diferència pràctica hi ha entre Q4_K_M i FP16.

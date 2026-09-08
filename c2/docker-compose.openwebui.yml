@@ -1,0 +1,61 @@
+# =============================================================================
+#  Open WebUI tot sol — CIDET · IA en local · Classe 2
+# -----------------------------------------------------------------------------
+#  Una interfície de xat per al teu Ollama, i res més. Cada alumne l'aixeca a la
+#  seva màquina i hi entra des del navegador.
+#
+#      docker compose -f c2/docker-compose.openwebui.yml up -d
+#      docker compose -f c2/docker-compose.openwebui.yml logs -f
+#
+#  Després obre  http://localhost:3000  (o http://LA_TEVA_IP:3000 des d'un altre
+#  ordinador de l'aula).
+#
+#  A demo/docker-compose.yml n'hi ha un altre, però aquell aixeca els quatre
+#  serveis de la demo sencera. Aquest només porta la interfície.
+# =============================================================================
+
+name: cidet-c2-webui
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: c2-open-webui
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-3000}:8080"
+    environment:
+      # Ollama corre a l'AMFITRIÓ, no en un contenidor: és qui té la GPU.
+      # host.docker.internal apunta a la màquina de fora, gràcies a extra_hosts.
+      OLLAMA_BASE_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      WEBUI_NAME: "Assistent Distribucions Vallès"
+      # Sense això, Open WebUI desa la configuració al volum el primer cop que
+      # arrenca i després ignora els canvis que facis aquí.
+      ENABLE_PERSISTENT_CONFIG: "false"
+    volumes:
+      # Els comptes i les converses viuen aquí. Esborrar el volum = començar de zero.
+      - webui_data:/app/backend/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+
+volumes:
+  webui_data:
+
+# -----------------------------------------------------------------------------
+#  COMPTES
+#
+#  Aquí no hi ha cap usuari ni cap contrasenya per defecte, i és a posta: no
+#  volem credencials escrites en un fitxer que és a un repositori públic.
+#
+#  ⚠️  EL PRIMER QUE ES REGISTRI ES QUEDA D'ADMINISTRADOR. Els que vinguin
+#  després són usuaris normals i, per defecte, es queden en espera que
+#  l'administrador els aprovi. Registra't tu primer.
+#
+#  Si aixeques això en una màquina que altres poden veure, recorda que darrere
+#  hi ha un Ollama SENSE AUTENTICACIÓ: mira c2/ollama-systemd.md, secció de xarxa.
+# -----------------------------------------------------------------------------

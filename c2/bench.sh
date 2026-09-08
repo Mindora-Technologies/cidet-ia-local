@@ -3,7 +3,24 @@
 #   ./c2/bench.sh --models qwen3:4b qwen3:8b --repeticions 3
 set -euo pipefail
 
-PREGUNTA_DEFECTE="Explica en tres paràgrafs què és la quantització d'un model de llenguatge i per què importa quan es fa servir en local."
+# El prompt de mesura viu en un fitxer a part, i no aquí dins, perquè TOTHOM
+# ha de mesurar amb exactament el mateix text. Si cadascú fa servir el seu, els
+# números de la classe no es poden comparar entre ells i l'exercici no serveix.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FITXER_PROMPT="${FITXER_PROMPT:-$SCRIPT_DIR/prompt-mesura.txt}"
+
+# Recanvi per si algú executa el script fora del repositori.
+PREGUNTA_DEFECTE="Explica en tres paràgrafs què és la quantització d'un model de llenguatge i per què importa quan s'executa en local."
+
+if [[ -f $FITXER_PROMPT ]]; then
+  # Llegim el fitxer sencer i li traiem els salts de línia finals.
+  PREGUNTA_FITXER="$(< "$FITXER_PROMPT")"
+  PREGUNTA_DEFECTE="${PREGUNTA_FITXER%$'\n'}"
+else
+  echo "AVÍS: no trobo $FITXER_PROMPT; faig servir el prompt de recanvi." >&2
+  echo "      Els teus números NO seran comparables amb els dels companys." >&2
+fi
+
 PREGUNTA="${PREGUNTA:-$PREGUNTA_DEFECTE}"
 MODELS=(); REPETICIONS=3; NUM_CTX=8192
 SORTIDA="${SORTIDA:-$(dirname "${BASH_SOURCE[0]}")/bench-$(date +%Y%m%d-%H%M).csv}"
@@ -46,4 +63,5 @@ for m in "${MODELS[@]}"; do
 done
 echo
 echo "→ $SORTIDA"
+echo "Prompt de mesura: $([[ -f $FITXER_PROMPT ]] && echo "$FITXER_PROMPT" || echo "(de recanvi, dins de l'script)")"
 echo "Compara el tokens/s amb el que preveia c1/hardware-calc.xlsx: ha de quedar entre el 60 % i el 80 %."
