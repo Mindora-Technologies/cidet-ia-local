@@ -83,6 +83,8 @@ consisteixen a arreglar-ne els casos on no.
 1. Ingerir **documents reals d'un client vostre** (anonimitzats).
 2. Trobar **dues preguntes** que el RAG mínim respongui malament. Les arreglem a la C5.
 
+> Si et perds amb algun terme, tens el [glossari del curs](../docs/glossari.md).
+
 ---
 
 *CIDET · IA en local · Classe 4*

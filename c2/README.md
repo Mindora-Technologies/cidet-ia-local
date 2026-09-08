@@ -55,6 +55,8 @@ no hi cap.**
 1. `bench-template.csv` omplert amb les vostres mesures.
 2. La comparació entre el t/s previst pel full de càlcul i el mesurat.
 
+> Si et perds amb algun terme, tens el [glossari del curs](../docs/glossari.md).
+
 ---
 
 *CIDET · IA en local · Classe 2*

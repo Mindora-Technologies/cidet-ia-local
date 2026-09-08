@@ -102,6 +102,8 @@ no inventar-se l'estat de l'enviament.
 [`checklist-entrega.md`](checklist-entrega.md) — repassa-la abans de donar
 res per acabat a casa d'un client.
 
+> Si et perds amb algun terme, tens el [glossari del curs](../docs/glossari.md).
+
 ---
 
 *CIDET · IA en local · Classe 6*

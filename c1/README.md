@@ -112,6 +112,8 @@ no hi caben de cap manera. *Més ràpida* i *millor* no són el mateix.
 veritat, compararem quantitzacions a la mateixa GPU, i veurem què passa exactament
 quan un model **no** hi cap i cau a la CPU.
 
+> Si et perds amb algun terme, tens el [glossari del curs](../docs/glossari.md).
+
 ---
 
 *CIDET · IA en local · Classe 1*

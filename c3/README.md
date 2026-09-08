@@ -90,6 +90,8 @@ pot caure en picat aquí, i és millor descobrir-ho ara que a casa del client.
 1. Executar `eval_models.py` amb almenys dos models i portar la taula.
 2. Afegir **5 casos vostres** a `tests.jsonl`, del domini del vostre client.
 
+> Si et perds amb algun terme, tens el [glossari del curs](../docs/glossari.md).
+
 ---
 
 *CIDET · IA en local · Classe 3*

@@ -54,6 +54,8 @@ Horari: **15:30 – 19:00**
 
 **Si vols veure la demo funcionant** → [`demo/README.md`](demo/README.md)
 
+**Si et perds amb algun terme** → [`docs/glossari.md`](docs/glossari.md)
+
 ```bash
 git clone https://github.com/Mindora-Technologies/cidet-ia-local.git
 cd cidet-ia-local

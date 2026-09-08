@@ -97,6 +97,8 @@ llegeix el graf i es toca. Demà, a la C6, s'hi connecten SQL i API de debò.
 2. Una pregunta del vostre client que el RAG no pugui respondre **per disseny**
    (perquè la resposta és en una base de dades o en una API). La resolem demà.
 
+> Si et perds amb algun terme, tens el [glossari del curs](../docs/glossari.md).
+
 ---
 
 *CIDET · IA en local · Classe 5*
